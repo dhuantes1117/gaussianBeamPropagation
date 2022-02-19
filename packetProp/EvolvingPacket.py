@@ -91,6 +91,10 @@ print("mod sq a's")
 print(np.vdot(a_n_0, a_n_0))
 
 fig, ax = plt.subplots(5, 1)
+#ax0, ax1, ax2, ax3, ax4 = fig.get_axes()
+ax[0].set_xticks([])
+ax[1].set_xticks([])
+ax[2].set_xticks([])
 
 ims0 = []
 ims1 = []
@@ -128,11 +132,16 @@ p4.set_data(freq, FT)
 [ax[i].relim() for i in range(len(ax))]
 [ax[i].autoscale_view(False, True, False) for i in range(1, len(ax))]
 
-y_lims = [(0, 1.2), (-0.35, 0.35), (-0.35, 0.35), (-0.05, 0.35), (-1, 12)]
-[ax[i].set_ylim(lim) for i, lim in enumerate(y_lims)]
+Potential   = []
+InitialState= []
+Real        = []
+Imag        = []
+Mod_sq      = []
+Momentum    = []
 
-def update(frame):
-    t = t_list[frame]
+freq = npft.fftfreq(x_list.shape[-1])
+freq = npft.fftshift(freq)
+for t in t_list:
     # Energy rep coefficients
     a_n = np.exp(-1j * eigenvalues * t) * a_n_0
     # Getting position rep and plotting
@@ -141,19 +150,25 @@ def update(frame):
     plottable = plottable / np.sqrt(np.vdot(plottable, plottable))
     # FT to get momentum amplitudes
     FT = np.abs(fft(state))
-    freq = npft.fftfreq(x_list.shape[-1])
-    freq = npft.fftshift(freq)
     FT   = npft.fftshift(FT)
     #setting plot data of matplotlib2DLines objects for animation
-    p.set_data(x_list, V_list / V_max)
-    p0.set_data(x_list, initial_state / init_max)
-    p1.set_data(x_list, state.real)
-    p2.set_data(x_list, state.imag)
-    p3.set_data(x_list, plottable)
-    p4.set_data(freq, FT)
-    #[ax[i].relim() for i in range(len(ax))]
-    #[ax[i].autoscale_view(True, True, False) for i in range(1, len(ax))]
+    Potential.append(V_list / V_max)
+    InitialState.append(initial_state / init_max)
+    Real.append(state.real)
+    Imag.append(state.imag)
+    Mod_sq.append(plottable)
+    Momentum.append(FT)
+
+
+def lookupAtFrame(frame):
+    p. set_data(x_list, Potential[frame])
+    p0.set_data(x_list, InitialState[frame])
+    p1.set_data(x_list, Real[frame])
+    p2.set_data(x_list, Imag[frame])
+    p3.set_data(x_list, Mod_sq[frame])
+    p4.set_data(freq, Momentum[frame])
     return (p, p0, p1, p2, p3, p4)
+    
 
 def outputFormat():
     ax[0].set_xlabel("x")
@@ -173,7 +188,13 @@ def outputFormat():
 #plt.plot(x_list, a_n_o)
 alpha = 25 / (5e-5)
 animation_interval = int(dt * alpha * (dt / (5e-5))) // 3
-DisplayState  = animation.FuncAnimation(fig, update, interval=animation_interval, repeat_delay=100, blit=True, frames=len(t_list), save_count = 60 * 5)
+plt.tight_layout()
+DisplayState  = animation.FuncAnimation(fig, lookupAtFrame, interval=animation_interval, repeat_delay=100, blit=True, frames=len(t_list), save_count = 60 * 3)
+
+y_lims = [(0, 1.2), (-0.35, 0.35), (-0.35, 0.35), (-0.05, 0.35), (-1, 12)]
+[ax[i].set_ylim(lim) for i, lim in enumerate(y_lims)]
+
 writervideo = animation.FFMpegWriter(fps=60)
-#DisplayState.save("EvolvingPacket.mp4", writer=writervideo)
+DisplayState.save("EvolvingPacket.mp4", writer=writervideo)
+
 plt.show()
