@@ -53,6 +53,7 @@ k = 8e3
 # centered between the bounds
 V_list   = (0.5) * k * (x_list - ((x_l + x_r) / 2))**2
 V_matrix = np.diag(V_list)
+V_max = max(V_list)
 
 # setting up Hamiltonian from kinetic and potential matrices
 H_matrix = K_matrix + V_matrix
@@ -81,54 +82,98 @@ print(np.vdot(wavefunc, wavefunc))
 
 
 # finding coefficients in energy representation
-#a_n_o = [np.dot(wavefunc, eigenvectors[:,i]) + 0j for i in range(N)]
-#a_n = [dx * np.dot(wavefunc, eigenvectors[:,i]) for i in range(N)]
 a_n_0 = [np.dot(eigenvectors[:,i], wavefunc) for i in range(N)]
 a_n_0 = np.array([np.vdot(eigenvectors[:,i], wavefunc) for i in range(N)])
 a_n_0 = a_n_0 / np.sqrt(np.vdot(a_n_0, a_n_0))
+initial_state = np.sum(a_n_0 * eigenvectors, 1)
+init_max = max(initial_state)
 print("mod sq a's")
 print(np.vdot(a_n_0, a_n_0))
 
 fig, ax = plt.subplots(5, 1)
-
-
-ax[0].plot(x_list, np.sum(a_n_0 * eigenvectors, 1))
 
 ims0 = []
 ims1 = []
 ims2 = []
 ims3 = []
 ims4 = []
-for t in t_list:
+p  = ax[0].plot([], [], 'C1', animated=True)[0]
+p0 = ax[0].plot([], [], 'C0', animated=True)[0]           
+p1 = ax[1].plot([], [], 'C0', animated=True)[0]           
+p2 = ax[2].plot([], [], 'C0', animated=True)[0]           
+p3 = ax[3].plot([], [], 'C0', animated=True)[0]           
+p4 = ax[4].plot([], [], 'C1', animated=True)[0]           
+
+# Initial just to get autoscaling right
+t = t_list[3 * len(t_list) // 7]
+# Energy rep coefficients
+a_n = np.exp(-1j * eigenvalues * t) * a_n_0
+# Getting position rep and plotting
+state = np.sum(a_n * eigenvectors, 1)
+plottable = np.abs(state)
+plottable = plottable / np.sqrt(np.vdot(plottable, plottable))
+# FT to get momentum amplitudes
+FT = np.abs(fft(state))
+freq = npft.fftfreq(x_list.shape[-1])
+freq = npft.fftshift(freq)
+FT   = npft.fftshift(FT)
+#setting plot data of matplotlib2DLines objects for animation
+p.set_data(x_list, V_list)
+p0.set_data(x_list, initial_state)
+p1.set_data(x_list, state.real)
+p2.set_data(x_list, state.imag)
+p3.set_data(x_list, plottable)
+p4.set_data(freq, FT)
+
+[ax[i].relim() for i in range(len(ax))]
+[ax[i].autoscale_view(False, True, False) for i in range(1, len(ax))]
+
+y_lims = [(0, 1.2), (-0.35, 0.35), (-0.35, 0.35), (-0.05, 0.35), (-1, 12)]
+[ax[i].set_ylim(lim) for i, lim in enumerate(y_lims)]
+
+def update(frame):
+    t = t_list[frame]
+    # Energy rep coefficients
     a_n = np.exp(-1j * eigenvalues * t) * a_n_0
+    # Getting position rep and plotting
     state = np.sum(a_n * eigenvectors, 1)
     plottable = np.abs(state)
     plottable = plottable / np.sqrt(np.vdot(plottable, plottable))
-    ims3.append(ax[1].plot(x_list, state.real, 'b'))
-    ims4.append(ax[2].plot(x_list, state.imag, 'b'))
-    ims1.append(ax[3].plot(x_list, plottable, 'b'))
-    ims0.append(ax[0].plot(x_list, V_list, 'orange'))
-    ims0.append(ax[0].plot(x_list, np.sum(a_n_0 * eigenvectors, 1), 'blue'))
-    #phi_p = (1 / np.sqrt(2 * pi)) * np.sum(np.exp(1j*p*x_list) * wavefunc) * dx
+    # FT to get momentum amplitudes
     FT = np.abs(fft(state))
     freq = npft.fftfreq(x_list.shape[-1])
     freq = npft.fftshift(freq)
     FT   = npft.fftshift(FT)
-    ims2.append(ax[4].plot(freq, FT, 'orange'))
+    #setting plot data of matplotlib2DLines objects for animation
+    p.set_data(x_list, V_list / V_max)
+    p0.set_data(x_list, initial_state / init_max)
+    p1.set_data(x_list, state.real)
+    p2.set_data(x_list, state.imag)
+    p3.set_data(x_list, plottable)
+    p4.set_data(freq, FT)
+    #[ax[i].relim() for i in range(len(ax))]
+    #[ax[i].autoscale_view(True, True, False) for i in range(1, len(ax))]
+    return (p, p0, p1, p2, p3, p4)
+
+def outputFormat():
+    ax[0].set_xlabel("x")
+    ax[1].set_xlabel("x")
+    ax[2].set_xlabel("x")
+    ax[3].set_xlabel("x")
+    ax[4].set_xlabel("p")
+    p.set_data ([], [])
+    p0.set_data([], [])
+    p1.set_data([], [])
+    p2.set_data([], [])
+    p3.set_data([], [])
+    p4.set_data([], [])
+    return ax 
+
 
 #plt.plot(x_list, a_n_o)
 alpha = 25 / (5e-5)
 animation_interval = int(dt * alpha * (dt / (5e-5))) // 3
-im_ani0  = animation.ArtistAnimation(fig, ims0, interval=animation_interval, repeat_delay=100, blit=True)
-im_ani1  = animation.ArtistAnimation(fig, ims1, interval=animation_interval, repeat_delay=100, blit=True)
-im_ani2 = animation.ArtistAnimation(fig, ims2,    interval=animation_interval, repeat_delay=100, blit=True)
-im_ani3 = animation.ArtistAnimation(fig, ims3,    interval=animation_interval, repeat_delay=100, blit=True)
-im_ani4 = animation.ArtistAnimation(fig, ims4,    interval=animation_interval, repeat_delay=100, blit=True)
-#writervideo = animation.FFMpegWriter(fps=60)
-#im_ani.save("EvolvingPacket.mp4", writer=writervideo)
+DisplayState  = animation.FuncAnimation(fig, update, interval=animation_interval, repeat_delay=100, blit=True, frames=len(t_list), save_count = 60 * 5)
+writervideo = animation.FFMpegWriter(fps=60)
+#DisplayState.save("EvolvingPacket.mp4", writer=writervideo)
 plt.show()
-
-exit()
-
-
-
